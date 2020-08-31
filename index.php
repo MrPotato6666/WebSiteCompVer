@@ -43,9 +43,10 @@
       <div id="CategoryIcon"><img src="./images/square-rounded-green.ico">
         <div id="IconTitle"><p style="font-size:17px"><b>Total Product:
           <script>
+          TotalProductUpdate();
             function TotalProductUpdate() {setInterval(function(){
               document.getElementById("IconValue").firstChild.firstChild.firstChild.textContent = GBInventArray.length;
-            }, 2000);}
+            }, 1000);}
           </script>
           </b></p></div>
         <div id="IconValue"><p style="font-size:60px"><b>0</b></p></div>
@@ -60,8 +61,8 @@
       </div>
    </div>
    <div class ="Diagram">
-     <?php include './php/DBQuery.php';
-     $results = dataQuery(query);
+     <?php include './php/TotalProductDBQuery.php';
+     $results = dataQuery("SELECT * FROM `testtable`", "testingdb");
      ?>
      <script>GBInventArray = <?php echo json_encode($results);?>;</script>
      <script type="text/javacsript" src="Chart.js"></script>

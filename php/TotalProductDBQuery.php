@@ -11,13 +11,12 @@ ini_set('display_errors', 1);
 
 define('USER', 'root');
 define('PASS', '');
-define('query', "SELECT * FROM `testtable`");
 //echo '<pre>'; print_r($results); echo '</pre>';
 
-function dataQuery($query) {
+function dataQuery($query, $dbname) {
     // establish database connection
     try {
-        $dbh = new PDO('mysql:host=localhost;dbname=testingdb', USER, PASS);
+        $dbh = new PDO('mysql:host=localhost;dbname='.$dbname, USER, PASS);
         $dbh->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
