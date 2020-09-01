@@ -13,6 +13,7 @@
     <script>
     var GBInventArray = [];
     </script>
+    <?php include './php/TotalProductDBQuery.php';?>
   </head>
    <body>
     ﻿<div class="top">
@@ -37,7 +38,6 @@
     <div class="file">
       <input type="file" id="fileupload" accept=".xls,.xlsx"/>
       <input type="button" id="fileconvert" value="Upload"/>
-      <script type="text/javascript" src="Chart.js"></script>
     </div>
     <div class="InventoryImage">
       <div id="CategoryIcon"><img src="./images/square-rounded-green.ico">
@@ -61,12 +61,12 @@
       </div>
    </div>
    <div class ="Diagram">
-     <?php include './php/TotalProductDBQuery.php';
-     $results = dataQuery("SELECT * FROM `testtable`", "testingdb");
-     ?>
+     <?php $results = dataQuery("SELECT * FROM `testtable`", "testingdb");?>
      <script>GBInventArray = <?php echo json_encode($results);?>;</script>
-     <script type="text/javacsript" src="Chart.js"></script>
+     <script type="text/javascript" src="PieChart.js"></script>
+     <script type="text/javascript" src="LineChart.js"></script>
      <div id="piechart"></div>
+     <div id="linechart"></div>
      <div id="DBQuery">
       <table id = "DBShow">
         <?php echo html_table($results);?>
