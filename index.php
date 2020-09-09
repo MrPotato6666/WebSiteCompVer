@@ -12,6 +12,7 @@
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script>
     var GBInventArray = [];
+    var GBSalesArray = [];
     </script>
     <?php include './php/TotalProductDBQuery.php';?>
   </head>
@@ -61,15 +62,21 @@
       </div>
    </div>
    <div class ="Diagram">
-     <?php $results = dataQuery("SELECT * FROM `testtable`", "testingdb");?>
-     <script>GBInventArray = <?php echo json_encode($results);?>;</script>
+     <?php
+     $StockResults = dataQuery("SELECT * FROM `testtable`", "testingdb");
+     $SalesResults = dataQuery("SELECT * FROM `salestable`", "testingdb");
+     ?>
+     <script>
+     GBInventArray = <?php echo json_encode($StockResults);?>;
+     GBSalesArray = <?php echo json_encode($SalesResults);?>;
+     </script>
      <script type="text/javascript" src="PieChart.js"></script>
      <script type="text/javascript" src="LineChart.js"></script>
      <div id="piechart"></div>
      <div id="linechart"></div>
      <div id="DBQuery">
       <table id = "DBShow">
-        <?php echo html_table($results);?>
+        <?php echo html_table($StockResults);?>
       </table>
      </div>
    </div>
