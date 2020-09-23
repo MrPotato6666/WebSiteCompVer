@@ -29,9 +29,9 @@ function drawCrosshairs() {
       console.log(SalesArray);
       var data = google.visualization.arrayToDataTable([
         ['Year', 'bis01', 'Drk53'],
-        ['2020', 2, 3],
-        ['2020', 1, 3],
-        ['2020', 7, 1]
+        ['2020-06', 2, 3],
+        ['2020-05', 1, 3],
+        ['2020-04', 7, 1]
       ]);
 
       // var data = google.visualization.arrayToDataTable([

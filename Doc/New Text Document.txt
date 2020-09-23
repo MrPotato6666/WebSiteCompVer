@@ -1,0 +1,407 @@
+BOOL CRUVApp::UpdateLotID()
+{
+	//define handles and variables
+	SQLHDBC hdbc = NULL;
+	SQLHENV henv = NULL;
+	SQLHENV hstmt = NULL;
+	SQLCHAR OutConnStr[255];  
+	SQLRETURN sqlConnection;
+	BOOL	bCheckLot;
+
+	// Allocate environment handle
+	sqlConnection = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+
+	// Set the ODBC version environment attribute
+	if(sqlConnection >= SQL_SUCCESS)
+		sqlConnection = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
+
+	// Allocate connection handle
+	if(sqlConnection >= SQL_SUCCESS)
+		sqlConnection = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
+
+	// Set login timeout to 5 seconds
+	if(sqlConnection >= SQL_SUCCESS)
+		SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
+
+	//output
+	//CString szMsg = _T("Attempting connection to SQL Server...");
+	//DisplayMessage(szMsg);
+	  
+	//connect to SQL Server
+	if(sqlConnection >= SQL_SUCCESS)
+		sqlConnection = SQLDriverConnect(hdbc, NULL, (SQLCHAR*)"Driver=SQL Server;Server=10.8.1.69;Uid=ifactory;Pwd=ifactory1;database=SAPWeb",
+		SQL_NTS,
+		OutConnStr,
+		sizeof(OutConnStr),
+		NULL,
+		SQL_DRIVER_NOPROMPT);
+
+	/*	szMsg = _T("SQL Server Connection Success");
+	else
+	{
+		szMsg = _T("SQL Server Connection Failed");
+		return FALSE;
+	}	
+	DisplayMessage(szMsg);*/
+
+	CString szSQLCmd;
+	// Allocate statement handle
+	if(sqlConnection >= SQL_SUCCESS)
+		sqlConnection = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+
+	m_szLotID_P = m_szLotID;
+	szSQLCmd.Format("select Prod_Ord, Badge from LFPROD_RELATED_INFO_FOR_IFACTORY where Machine='%s' ORDER BY ReadOn DESC", m_szDatabaseID);
+	int nLen = szSQLCmd.GetLength();
+	char* CSQLcmd = new char[nLen+1];
+	strncpy(CSQLcmd, szSQLCmd, nLen+1);
+
+	if(sqlConnection >= SQL_SUCCESS)
+		sqlConnection = SQLExecDirect(hstmt, (SQLCHAR*)CSQLcmd, SQL_NTS);
+
+	SQLCHAR sqlVar[240];
+	SQLLEN ptrSqlVar;
+
+	////if Bind columns needed
+	//SQLBindCol(hstmt, 1, SQL_C_USHORT, &cPersonId, 2,
+	//					(SQLPOINTER) &lenPersonId); //first column
+	//SQLBindCol(hstmt, 2, SQL_C_CHAR, &strFirstName,
+	//					FIRSTNAME_LEN, &lenFirstName); //second column
+
+	// Fetch and print each row of data until SQL_NO_DATA returned.
+	if ((sqlConnection = SQLFetch(hstmt)) >= SQL_SUCCESS) 
+	{
+		sqlVar[0] = '\0';
+		SQLGetData(hstmt, 1, SQL_CHAR, sqlVar, 240, &ptrSqlVar);
+		if(sqlVar[0] != '\0')
+			m_szLotID = sqlVar;
+		m_szLotID.TrimLeft("0");
+		sqlVar[0] = '\0';
+		SQLGetData(hstmt, 2, SQL_CHAR, sqlVar, 240, &ptrSqlVar);
+		if(sqlVar[0] != '\0')
+			m_szBadgeNum = sqlVar;
+		m_szBadgeNum.TrimRight(" ");
+	}
+
+	if(sqlConnection >= SQL_SUCCESS)
+	{
+		if(m_szLotID != m_szLotID_P) //Compare the Lot ID before auto-run
+		{
+			bCheckLot = TRUE;
+		}else
+			bCheckLot = FALSE;
+	}else
+		bCheckLot = TRUE;
+
+	// Free handles
+	// Statement
+	if (hstmt != SQL_NULL_HSTMT)
+		SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+
+    // Connection
+    if (hdbc != SQL_NULL_HDBC) 
+	{
+        SQLDisconnect(hdbc);
+        SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+    }
+
+    // Environment
+    if (henv != SQL_NULL_HENV)
+        SQLFreeHandle(SQL_HANDLE_ENV, henv);
+
+	m_smfMachine["Config"]["LotInfo"]["LotID"] = m_szLotID;
+	m_smfMachine["Config"]["LotInfo"]["BadgeNo"] = m_szBadgeNum;
+
+	m_smfMachine.Update();
+
+	return bCheckLot;
+}
+
+**********************************************************************************************
+LONG CProcess::SrvDownloadParameter(IPC_CServiceMessage& svMsg)
+{
+	CString szMsg, szParaInfoMsg = "";
+	CHAR* pBuffer	= NULL;
+	IPC_CServiceMessage srvMsg_t;
+	CHAR* pBuffer_t = NULL;
+	int nMsgLen;
+
+	int nProFileOp = 0;
+	int nEngForDbExp = 0;
+	int nEngTop;
+	int nEngBtm;
+	CString szLSPAW_Top;
+	CString szLSPAW_Bot;
+	float fStripPitch = 0;
+	float fStripWidth = 0;
+	int nMatCamMoveFlag = 0;
+
+	if( (nMsgLen = svMsg.GetMsgLen()) > 0 )
+	{
+		pBuffer = new CHAR[nMsgLen];
+		svMsg.GetMsg(nMsgLen,pBuffer);
+		m_szRuncard = pBuffer;
+	}
+
+	HRESULT hr;
+	_bstr_t bt;
+	_ConnectionPtr cn=NULL;
+	BOOL bConnected=FALSE;
+	if(m_szRuncard == "" || m_szRuncard == "0") 
+	{
+		HmiMessage("Run card error");
+		return 1;
+	}
+	CString szServer="10.8.1.69", szDatabase="Services", szPassword="quality", szName="quality";
+	bt=(_bstr_t)"Provider=SQLOLEDB.1;Persist Security Info=False;User ID="+(_bstr_t)szName+(_bstr_t)";Password="+(_bstr_t)szPassword+(_bstr_t)";Initial Catalog="+(_bstr_t)szDatabase+(_bstr_t)";Data Source="+(_bstr_t)szServer;
+	CoInitialize(NULL);  //Initialize COM 
+	try{
+		hr=cn.CreateInstance(__uuidof(Connection));
+		ASSERT(SUCCEEDED(hr));
+		hr=cn->Open (bt,_bstr_t(""),_bstr_t(""),adModeUnknown);
+        ASSERT(SUCCEEDED(hr));
+	    bConnected=TRUE;
+	}
+	catch (_com_error ){
+		HmiMessage("Database connection fail.");
+	}
+	if(bConnected)
+	{
+		_RecordsetPtr rs;
+		_bstr_t bt;
+		HRESULT hr;
+		CString str;
+		bt=(_bstr_t)"select * from t_Runcard where RuncardNumber='"+m_szRuncard+"'";		
+		try{
+			hr=rs.CreateInstance (__uuidof(Recordset));
+			ASSERT(SUCCEEDED(hr));
+			hr=rs->Open (bt,cn.GetInterfacePtr (),adOpenDynamic,adLockOptimistic,adCmdText);
+			ASSERT(SUCCEEDED(hr));
+			
+			rs->MoveFirst();
+			if(!rs->EndOfFile)
+			{
+				m_szWorkCenter=(char*)(_bstr_t)rs->Fields->GetItem("WorkCenter")->Value;
+				nEngTop = (int)rs->Fields->GetItem("ExposureEnergy_Top")->Value;
+				nEngBtm = (int)rs->Fields->GetItem("ExposureEnergy_Bottom")->Value;
+				m_szArtworkNum=(char*)(_bstr_t)rs->Fields->GetItem("ArtworkNumber")->Value;
+				m_szPlatingNum = (char*)(_bstr_t)rs->Fields->GetItem("PlatingToolNumber")->Value;
+				m_fMarkDistance = (float)rs->Fields->GetItem("MarkDistance")->Value;
+				m_fIdxDistance = (float)rs->Fields->GetItem("IndexDistance")->Value;
+				m_nMatThickness = (int)rs->Fields->GetItem("MaterialThickness")->Value;
+				szLSPAW_Top = (char*)(_bstr_t)rs->Fields->GetItem("LSPAW_TOP")->Value;//New add
+				szLSPAW_Bot = (char*)(_bstr_t)rs->Fields->GetItem("LSPAW_BOT")->Value;//New add
+
+				CRUVApp* pAppMod = dynamic_cast<CRUVApp*>(m_pModule);
+				if(pAppMod)
+					pAppMod->PassArtWork(m_szArtworkNum);
+
+				try{
+					m_szMatWidth=(char*)(_bstr_t)rs->Fields->GetItem("LRMWidth")->Value;
+				}
+				catch(_com_error){m_szMatWidth = "";}
+				try{
+					CString szStripPitch=(char*)(_bstr_t)rs->Fields->GetItem("StripPitch")->Value;
+					fStripPitch = (float)atof((LPCTSTR)szStripPitch);
+				}
+				catch(_com_error){fStripPitch = 0.0;}
+				try{
+					CString szStripWidth=(char*)(_bstr_t)rs->Fields->GetItem("StripWidth")->Value;
+					fStripWidth = (float)atof((LPCTSTR)szStripWidth.Left(5));
+				}
+				catch(_com_error){fStripWidth = 0.0;}
+
+				if(m_szArtworkNum.Mid(2,1).MakeUpper() == "E")	//Selective Plating
+				{
+					if(m_szWorkCenter.Right(1) == "2")
+					{
+						nProFileOp = 2;		//2ndUV or 2ndUV(SMALL)
+					}else
+					{
+						nProFileOp = 1;		//1stUV or 1stUVULAA
+						m_szArtworkNum = szLSPAW_Top;	//use ¡°LSPAW_Top¡± as Artwork number
+						nEngTop = 70;
+						nEngBtm = 70;
+						//	Use top/bottom 70mJ regardless of artwork.
+						if(szLSPAW_Bot.Right(4) == "2330" || szLSPAW_Bot.Right(4) == "0520" || szLSPAW_Bot.Right(4) == "4130")
+						{
+							nEngForDbExp = 10;
+							//use exposure during die-set open
+						}else
+						{
+							nEngForDbExp = 0;
+							//do not expose during die-set open
+						}
+
+					}
+					if(m_szArtworkNum.Mid(1,1).MakeUpper() == "L")
+					{
+						
+						nMatCamMoveFlag = 1; //move material camera to max before exposure 
+					}
+					else
+					{
+						nMatCamMoveFlag = 0;//do not need to move material camera
+					}
+				}
+				
+				int nConvId;
+				CString szDisplay;
+				LONG lUserSel = glHMI_CONTINUE, lUserSel2 = glHMI_CONTINUE;
+				szDisplay.Format("Please check parameter.\nClick continue to overwrite.\n\nWorkCenter: %s\nEnergyTop: %d\nEnergyBtm: %d\nAWNumber: %s\n\
+								 MarkDist: %f\nIndexDist: %.2f\nMaterialThickness: %d\nMaterialWidth: %s\nStripPitch: %f\nStripWidth:%f IN", 
+					m_szWorkCenter, nEngTop, nEngBtm, m_szArtworkNum, m_fMarkDistance, m_fIdxDistance, m_nMatThickness, m_szMatWidth, fStripPitch, fStripWidth);
+				lUserSel = HmiMessage(szDisplay, "Paramter Confirm", glHMI_MBX_CONTINUECANCEL, glHMI_ALIGN_LEFT);
+				if(lUserSel == glHMI_CONTINUE)
+				{
+					pBuffer_t = new CHAR[30];
+					if(nProFileOp == 2 || nProFileOp == 1)	//	//Selective Plating; else No change process. To select manyally
+					{
+						szParaInfoMsg.Append("\n3rd char is E - SelPlating");
+						if(nProFileOp == 2)
+						{
+							szParaInfoMsg.Append("\nLast Char of WorkCtr is 2 - Keep Artwork Num");
+							if(m_fIdxDistance <= 360)
+							{
+								szParaInfoMsg.Append("\nFeeding Dist LT 360 - 2ndUVHalf.dev");
+								strncpy(pBuffer_t + sizeof(LONG), "2ndUVHalf.dev\0", 14);
+								srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+								nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+							}
+							else if (szLSPAW_Top.Mid(1, 1).MakeUpper() == "L")
+							{
+								szParaInfoMsg.Append("\n2nd char of LSPAW_Top is L - 2ndUV(SMALL).dev");
+								strncpy(pBuffer_t + sizeof(LONG), "2ndUV(SMALL).dev\0", 17);
+								srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+								nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+							}
+							else
+							{
+								szParaInfoMsg.Append("\n2nd char of LSPAW_Top is not L - 2ndUV.dev");
+								strncpy(pBuffer_t + sizeof(LONG), "2ndUV.dev\0", 10);
+								srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+								nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+							}
+						}
+						else if(nProFileOp == 1)
+						{
+							szParaInfoMsg.Append("\nLast char of WorkCtr is not 2 - 1st UV");
+							if (nMatCamMoveFlag == 1)
+							{
+								szParaInfoMsg.Append("\n2nd char of AWNum is L - 1stUVULAA.dev");
+								strncpy(pBuffer_t + sizeof(LONG), "1stUVULAA.dev\0", 14);
+							}
+							else
+							{
+								szParaInfoMsg.Append("\n2nd char of AWNum is not L - 1stUV.dev");
+								strncpy(pBuffer_t + sizeof(LONG), "1stUV.dev\0", 10);
+							}
+							srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+							nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+						}
+						if(!m_comClient.ScanReplyForConvID(nConvId, 8000))
+							lUserSel2 = HmiMessage("Change process fail.\nClick continue to overwrite\nOr click cancel.", "ERROR", glHMI_MBX_CONTINUECANCEL, glHMI_ALIGN_LEFT);
+					}
+					else
+					{
+						if (m_szArtworkNum.Left(1).SpanIncluding("0123456789") == m_szArtworkNum.Left(1))
+						{
+							szParaInfoMsg.Append("1st char of AWNum is number");
+							szParaInfoMsg.Append("3nd char of AWNum is not E - Panel.dev");
+							strncpy(pBuffer_t + sizeof(LONG), "Panel.dev\0", 10);
+							srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+							nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+						}
+						else
+						{
+							szParaInfoMsg.Append("1st char of AWNum is not number");
+							szParaInfoMsg.Append("3nd char of AWNum is not E - RTR.dev");
+							strncpy(pBuffer_t + sizeof(LONG), "RTR.dev\0", 8);
+							srvMsg_t.InitMessage(strlen(pBuffer_t) + sizeof(LONG), pBuffer_t);
+							nConvId = m_comClient.SendRequest("RUV", "ChangeProcess", srvMsg_t, 1);
+						}
+						if(!m_comClient.ScanReplyForConvID(nConvId, 8000))
+							lUserSel2 = HmiMessage("Change process fail.\nClick continue to overwrite\nOr click cancel.", "ERROR", glHMI_MBX_CONTINUECANCEL, glHMI_ALIGN_LEFT);
+						//Panel or RTR
+					}
+					if(lUserSel2 == glHMI_CONTINUE)
+					{
+						if(nProFileOp == 2)
+							(*m_psmfProcess)["Config"]["Auto"]["2ndUV"] = (LONG)1;
+						else if(nProFileOp == 1)
+							(*m_psmfProcess)["Config"]["Auto"]["2ndUV"] = (LONG)0;
+						if (nProFileOp == 1 && nEngForDbExp > 0)		//1st UV
+						{
+							szParaInfoMsg.Append("LSPAW_Bot last 4 digit is 2330 or 0520 or 4130 - DB Exposure");
+							(*m_psmfMachine)["Config"]["Auto"]["DoubleExposure"] = (LONG)1;
+						}
+						else
+							(*m_psmfMachine)["Config"]["Auto"]["DoubleExposure"] = (LONG)0;
+
+						//DisplayMessage("Continue Clicked");
+						(*m_psmfDevice)["LampCtrl"]["Expose"]["EnergyUp"] = nEngTop;
+						(*m_psmfDevice)["LampCtrl"]["Expose"]["EnergyLo"] = nEngBtm;
+						(*m_psmfMachine)["Config"]["Dimension"]["Material"]["UY"] = m_fMarkDistance/2.0;
+						(*m_psmfMachine)["Config"]["Dimension"]["Material"]["ExtraY"] = m_fMarkDistance/2.0;
+						(*m_psmfDevice)["Process"]["axDriverRoll"]["FeedingDist"] = m_fIdxDistance;
+						(*m_psmfDevice)["Process"]["LFThickness"] = m_nMatThickness/1000.0;		//um->mm
+						(*m_psmfProcess)["Config"]["Auto"]["MatCamMove"] = nMatCamMoveFlag;
+						(*m_psmfDevice)["LampCtrl"]["Expose"]["EnergyDoubleExp"] =nEngForDbExp;
+	
+						int nWidth = atoi(m_szMatWidth.Mid(m_szMatWidth.Find("mm")-3, 3));
+						if(nWidth > 0 && nWidth < 999)
+						{
+							(*m_psmfDevice)["Process"]["LFWidth"] = nWidth;
+							(*m_psmfMachine)["Config"]["Dimension"]["Edge"]["Y"] = nWidth/2.0;
+						}
+						else
+						{
+							szMsg.Format("Wrong format for material width %s", m_szMatWidth);
+							DisplayMessage(szMsg);
+						}
+	
+						m_pAppMod->UpdateParaRelThickness();
+	
+						szMsg.Format("Update Summary: RuncardNum: %s, EnergyUp: %d, EnergyLo: %d, MarkDistance: %fmm, FeedingDist: %fmm, CoilThickness: %fmm, CoilWidth: %dmm",
+							m_szRuncard, nEngTop, nEngBtm, m_fMarkDistance/2.0, m_fIdxDistance, m_nMatThickness/1000.0, (LONG)(*m_psmfDevice)["Process"]["LFWidth"]);
+						DisplayMessage(szMsg);
+						(*m_psmfDevice).Update();
+						(*m_psmfMachine).Update();
+						(*m_psmfProcess).Update();
+						CLampCtrl* pAppStn = dynamic_cast<CLampCtrl*> (m_pAppMod->GetStation("LampCtrl"));
+						pAppStn->SetUpdatePosition(TRUE);
+
+						HmiMessage(szParaInfoMsg, "Summary");
+					}
+				}
+			}	
+			else
+				HmiMessage("No record found"); 
+			rs->Close();
+			//m_user_list.SetCurSel (0);
+		}
+		catch(_com_error& e)
+		{
+			
+			HmiMessage("Database Exception", "Error");
+			// Crack _com_error
+			_bstr_t bstrSource(e.Source());
+			_bstr_t bstrDescription(e.Description());
+
+			TRACE( "Exception thrown for classes generated by #import" );
+			TRACE( "\tCode = %08lx\n",      e.WCode());
+			TRACE( "\tCode meaning = %s\n", e.ErrorMessage());
+			TRACE( "\tSource = %s\n",       (LPCTSTR) bstrSource);
+			TRACE( "\tDescription = %s\n",  (LPCTSTR) bstrDescription);
+
+			// Errors Collection may not always be populated.
+			if( FAILED( hr ) )
+			{
+				TRACE( "*** HRESULT ***" );
+				//TRACE( LogCrackHR( hr )  );
+			}
+		}
+	}
+	if(pBuffer) delete[] pBuffer;
+	if (pBuffer_t) delete[] pBuffer_t;
+	return 1;
+}
