@@ -14,9 +14,22 @@ from array import *
 import datetime
 
 wb = excel.load_workbook('test.xlsx')
-ProductInfo = wb['Sheet1']
-ProductRaw = wb['Sheet2']
-FinalReport = wb['Sheet3']
+
+try:
+    ProductInfo = wb["Sheet1"]
+except KeyError:
+    print("Creating Sheet which does not exist.....")
+    wb.create_sheet(title="Sheet1")
+    
+sheet_name = wb.sheetnames
+for SN in sheet_name:
+    if SN == "Sheet1":
+        continue
+    RemoveSheet = wb[SN]
+    wb.remove(RemoveSheet)
+    
+ProductRaw = wb.create_sheet(title="Sheet2")
+FinalReport = wb.create_sheet(title="Sheet3")
 
 ProductStruct = {}
 ProductStructs = {}
@@ -50,29 +63,31 @@ for row in range(3, ProductInfo.max_row+1):
             for Sheet2_row in range(1, ProductRaw.max_row+1):
                 if(ProductRaw['C'+str(Sheet2_row)].value == "Shipping Fee Overall"):
                     Temp_FVar = ProductRaw['H'+str(Sheet2_row)].value or 0
-                    ProductRaw['H'+str(Sheet2_row)].value = float(Temp_FVar) + ProductInfo['H'+str(row)].value
-                    Temp_nVar = ProductRaw['V'+str(Sheet2_row)].value or 0
-                    ProductRaw['V'+str(Sheet2_row)].value = Temp_nVar + 1                    
+                    ProductRaw['H'+str(Sheet2_row)].value = float(Temp_FVar) + ProductInfo['H'+str(row)].value                   
                     break
             else:
-                current_row.append(1);
                 ProductRaw.append(current_row)
         elif(ProductInfo['C'+str(row)].value == "Item Price Credit"):
             for col in range(1, ProductInfo.max_column+1):
                 current_row.append(ProductInfo.cell(row=row,column=col).value)
-                Temp_SellerSKU = ProductInfo['F'+str(row)].value.split("-q")
+            Temp_SellerSKU = str(ProductInfo['F'+str(row)].value).split("-q")
             for Sheet2_row in range(1, ProductRaw.max_row+1):
                 if(ProductRaw['C'+str(Sheet2_row)].value == "Item Price Credit" and ProductRaw['F'+str(Sheet2_row)].value == Temp_SellerSKU[0]):
-                    Temp_FVar = ProductRaw['H'+str(Sheet2_row)].value or 0
-                    ProductRaw['H'+str(Sheet2_row)].value = float(Temp_FVar) + ProductInfo['H'+str(row)].value
-                    Temp_nVar = ProductRaw['V'+str(Sheet2_row)].value or 0
+                    Temp_FVar = ProductRaw['X'+str(Sheet2_row)].value or 0
+                    Temp_nVar = ProductRaw['W'+str(Sheet2_row)].value or 0
+                    ProductRaw['X'+str(Sheet2_row)].value = Temp_FVar + ProductInfo['H'+str(row)].value
                     if(len(Temp_SellerSKU) > 1):
-                        ProductRaw['V'+str(Sheet2_row)].value = Temp_nVar + int(Temp_SellerSKU[1])
+                        ProductRaw['W'+str(Sheet2_row)].value = Temp_nVar + int(Temp_SellerSKU[1])
                     else:
-                        ProductRaw['V'+str(Sheet2_row)].value = Temp_nVar + 1 
+                        ProductRaw['W'+str(Sheet2_row)].value = Temp_nVar + 1
+                    Temp_TotalUnitPrice = ProductRaw['X'+str(Sheet2_row)].value or 0
+                    Temp_TotalUnit = ProductRaw['W'+str(Sheet2_row)].value or 0
+#                    print(Temp_SellerSKU[0]+"    "+str(Temp_TotalUnitPrice)+"             "+str(Temp_TotalUnit))
+                    ProductRaw['H'+str(Sheet2_row)].value = Temp_TotalUnitPrice/Temp_TotalUnit  
                     break
             else:
                 current_row.append(1);
+                current_row.append(ProductInfo['H'+str(row)].value);
                 ProductRaw.append(current_row)                
         else:
             for col in range(1, ProductInfo.max_column+1):
@@ -102,21 +117,13 @@ for row in range(2, ProductRaw.max_row+1) :
     elif("Promotional Charges" in ProductRaw['C'+str(row)].value):
         FinalReportColumn[19] = "Promotion Charges"
         FinalReportColumn[20] = ProductRaw['C'+str(row)].value
-    Temp_Quantity = ProductRaw['V'+str(row)].value or 0
+    Temp_Quantity = ProductRaw['W'+str(row)].value or 0
     if(Temp_Quantity < 1):
         FinalReportColumn[21] = 1
     else:
         FinalReportColumn[21] = Temp_Quantity
     FinalReportColumn[22] = ProductRaw['H'+str(row)].value
     FinalReport.append(FinalReportColumn)
-    
-    
-    
-    
-    
-
-    
-    
     
 #for row in range(2, ProductInfo.max_row+1):
 #    Product = ProductInfo['B'+str(row)].value
