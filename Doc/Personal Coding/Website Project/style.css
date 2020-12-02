@@ -1,0 +1,44 @@
+@charset "utf-8";
+/*公共样式*/
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,p,blockquote,table,tr,th,td,embed,object,img{margin:0;padding:0;}
+ul,li,ol,dl{list-style-type:none;}
+img{border: none;}
+a{text-decoration:none;color:#333;}
+a:hover{ text-decoration:none;color:#FF3933;}
+body {width:100%; height:100%; margin:auto; font-size:14px;background: #ffffff;color:#333;font-family:Microsoft Yahei,helvetica,arial;}
+.blank{height:15px;}
+
+/*头部*/
+.top{width:100%;overflow:hidden;background:#24292e;position: fixed;z-index: 9999;top: 0;box-shadow: 0 0 5px #888;}
+.top .center{min-width: 320px;max-width: 1200px;height:60px;margin:0 auto;}
+/*.top .logo{display:inline-block; width:100px; margin:0px; position:absolute; left:5px}*/
+.top .logo{display:inline-block; width:100px; height:60px; background:url(./images/cart.ico) no-repeat; position:absolute; top:6px; left:50px}
+.top .search{float:left;background:#eee;border:solid 1px;margin:15px 0 0 10%; position:absolute;left:70px}
+.top .search .in1{float:left;width: 200px;height:30px;background:#eee;line-height:32px;padding-left:5px;border:none;}
+.top .search .in2{float:right;width:30px;height:30px;background:#fff url(./images/ico.png) no-repeat -72px 5px;border:none;text-indent: -70px;cursor:pointer;}
+
+.nav{height: 100%;width:150px;overflow:hidden;background:#e6e6e6;margin-top:59px;position:fixed;display:inline-block;}
+.nav ul li{margin: 0px 20px; line-height:50px;text-align: left;}
+.nav ul li:hover{text-decoration:underline overline;}
+
+.file{display:inline-block; height:20px;width:300px;position:relative;top: 100px; left:200px;}
+.file #fileupload{float:left;width:200px;height:20px;}
+
+.InventoryImage {width:100%; height:128px; display:block; position:relative; top:150px}
+.InventoryImage #CategoryIcon {display: inline-block; width:128px; height: 128px; margin-left: 150px; position:relative; left:30px}
+.InventoryImage #CategoryIcon #IconTitle p b{font-family: Comic Sans MS; margin:0px; height:20px; position:absolute; top:5px; left:5px}
+.InventoryImage #CategoryIcon #IconValue p b{font-family: Comic Sans MS; height:50px; width:50px; position:absolute; top:35px; left:50px}
+
+.Diagram {width:100%; height:auto;; display: block; position:relative; top:200px}
+.Diagram #piechart {position:absolute; left:170px}
+.Diagram #linechart{height:400px; width:600px; position:absolute; top:300px; left:170px}
+.Diagram #DBQuery {position: absolute; left:520px}
+.Diagram #DBQuery table {font-family: arial, sans-serif; border: 2px solid black; border-collapse: collapse; width: 100%;}
+.Diagram #DBQuery table th  {background-color: #ffffcc;}
+.Diagram #DBQuery table td, th {border: 2px solid black; text-align: left; padding: 8px;}
+
+/* #ProductTable {display:inline-block; position: relative; top:170px; left:220px}
+#ProductTable table {font-family: arial, sans-serif; border: 2px solid black; border-collapse: collapse; width: 100%;}
+#ProductTable table th  {background-color: #ffffcc;}
+#ProductTable table td, th {border: 2px solid black; text-align: left; padding: 8px;}
+#ProductTable table tr:nth-child(even) {background-color: #dddddd;} */
